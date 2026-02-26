@@ -128,6 +128,7 @@ interface SettingsUpdate {
   sidebarAutoHideEnabled?: boolean;
   snowEffectEnabled?: boolean;
   preventAutoScrollEnabled?: boolean;
+  chatWidthEnabled?: boolean;
 }
 
 export default function Popup() {
@@ -157,6 +158,7 @@ export default function Popup() {
   const [sidebarAutoHideEnabled, setSidebarAutoHideEnabled] = useState<boolean>(false);
   const [snowEffectEnabled, setSnowEffectEnabled] = useState<boolean>(false);
   const [preventAutoScrollEnabled, setPreventAutoScrollEnabled] = useState<boolean>(false);
+  const [chatWidthEnabled, setChatWidthEnabled] = useState<boolean>(true);
   const [isAIStudio, setIsAIStudio] = useState<boolean>(false);
 
   useEffect(() => {
@@ -235,6 +237,8 @@ export default function Popup() {
         payload.gvSnowEffect = settings.snowEffectEnabled;
       if (typeof settings.preventAutoScrollEnabled === 'boolean')
         payload.gvPreventAutoScrollEnabled = settings.preventAutoScrollEnabled;
+      if (typeof settings.chatWidthEnabled === 'boolean')
+        payload.geminiChatWidthEnabled = settings.chatWidthEnabled;
       void setSyncStorage(payload);
     },
     [setSyncStorage],
@@ -464,6 +468,7 @@ export default function Popup() {
           gvSidebarAutoHide: false,
           gvSnowEffect: false,
           gvPreventAutoScrollEnabled: false,
+          geminiChatWidthEnabled: true,
         },
         (res) => {
           const m = res?.geminiTimelineScrollMode as ScrollMode;
@@ -490,6 +495,7 @@ export default function Popup() {
           setSidebarAutoHideEnabled(res?.gvSidebarAutoHide === true);
           setSnowEffectEnabled(res?.gvSnowEffect === true);
           setPreventAutoScrollEnabled(res?.gvPreventAutoScrollEnabled === true);
+          setChatWidthEnabled(res?.geminiChatWidthEnabled !== false);
 
           // Reconcile stored custom websites with actual granted permissions.
           // If the user denied a permission request, the popup may have closed before we could revert storage.
@@ -1011,6 +1017,11 @@ export default function Popup() {
           step={1}
           narrowLabel={t('chatWidthNarrow')}
           wideLabel={t('chatWidthWide')}
+          enabled={chatWidthEnabled}
+          onEnabledChange={(checked) => {
+            setChatWidthEnabled(checked);
+            apply({ chatWidthEnabled: checked });
+          }}
           onChange={chatWidthAdjuster.handleChange}
           onChangeComplete={chatWidthAdjuster.handleChangeComplete}
         />
