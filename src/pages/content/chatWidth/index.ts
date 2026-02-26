@@ -176,41 +176,64 @@ function removeStyles() {
 
 export function startChatWidthAdjuster() {
   let currentWidthPercent = DEFAULT_PERCENT;
+  let isEnabled = true;
 
   // Load initial width (%), migrating legacy px values when seen
-  chrome.storage?.sync?.get({ geminiChatWidth: DEFAULT_PERCENT }, (res) => {
-    const storedWidth = res?.geminiChatWidth;
-    const normalized = normalizePercent(storedWidth, DEFAULT_PERCENT);
-    currentWidthPercent = normalized;
-    applyWidth(currentWidthPercent);
+  chrome.storage?.sync?.get(
+    { geminiChatWidth: DEFAULT_PERCENT, geminiChatWidthEnabled: true },
+    (res) => {
+      isEnabled = res?.geminiChatWidthEnabled !== false;
+      const storedWidth = res?.geminiChatWidth;
+      const normalized = normalizePercent(storedWidth, DEFAULT_PERCENT);
+      currentWidthPercent = normalized;
 
-    if (typeof storedWidth === 'number' && storedWidth !== normalized) {
-      try {
-        chrome.storage?.sync?.set({ geminiChatWidth: normalized });
-      } catch (e) {
-        console.warn('[Gemini Voyager] Failed to migrate chat width to %:', e);
+      if (isEnabled) applyWidth(currentWidthPercent);
+
+      if (typeof storedWidth === 'number' && storedWidth !== normalized) {
+        try {
+          chrome.storage?.sync?.set({ geminiChatWidth: normalized });
+        } catch (e) {
+          console.warn('[Gemini Voyager] Failed to migrate chat width to %:', e);
+        }
       }
-    }
-  });
+    },
+  );
 
   // Listen for changes from storage
   const storageChangeHandler = (
     changes: Record<string, chrome.storage.StorageChange>,
     area: string,
   ) => {
-    if (area === 'sync' && changes.geminiChatWidth) {
-      const newWidth = changes.geminiChatWidth.newValue;
-      if (typeof newWidth === 'number') {
-        const normalized = normalizePercent(newWidth, DEFAULT_PERCENT);
-        currentWidthPercent = normalized;
-        applyWidth(currentWidthPercent);
+    if (area === 'sync') {
+      let shouldUpdate = false;
 
-        if (normalized !== newWidth) {
-          try {
-            chrome.storage?.sync?.set({ geminiChatWidth: normalized });
-          } catch (e) {
-            console.warn('[Gemini Voyager] Failed to migrate chat width to % on change:', e);
+      if (changes.geminiChatWidthEnabled) {
+        isEnabled = changes.geminiChatWidthEnabled.newValue !== false;
+        shouldUpdate = true;
+      }
+
+      if (changes.geminiChatWidth) {
+        const newWidth = changes.geminiChatWidth.newValue;
+        if (typeof newWidth === 'number') {
+          const normalized = normalizePercent(newWidth, DEFAULT_PERCENT);
+          currentWidthPercent = normalized;
+          shouldUpdate = true;
+
+          if (normalized !== newWidth) {
+            try {
+              chrome.storage?.sync?.set({ geminiChatWidth: normalized });
+            } catch (e) {
+              console.warn('[Gemini Voyager] Failed to migrate chat width to % on change:', e);
+            }
           }
+        }
+      }
+
+      if (shouldUpdate) {
+        if (isEnabled) {
+          applyWidth(currentWidthPercent);
+        } else {
+          removeStyles();
         }
       }
     }
@@ -222,6 +245,7 @@ export function startChatWidthAdjuster() {
   // Use debouncing and cache the width to avoid storage reads
   let debounceTimer: number | null = null;
   const observer = new MutationObserver(() => {
+    if (!isEnabled) return;
     if (debounceTimer !== null) {
       clearTimeout(debounceTimer);
     }

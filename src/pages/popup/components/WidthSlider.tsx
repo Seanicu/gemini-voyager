@@ -2,6 +2,7 @@ import React from 'react';
 
 import { Card, CardContent, CardTitle } from '../../../components/ui/card';
 import { Slider } from '../../../components/ui/slider';
+import { Switch } from '../../../components/ui/switch';
 
 interface WidthSliderProps {
   label: string;
@@ -11,6 +12,8 @@ interface WidthSliderProps {
   step: number;
   narrowLabel: string;
   wideLabel: string;
+  enabled?: boolean;
+  onEnabledChange?: (enabled: boolean) => void;
   valueFormatter?: (value: number) => string;
   onChange: (value: number) => void;
   onChangeComplete?: (value: number) => void;
@@ -28,17 +31,35 @@ export default function WidthSlider({
   step,
   narrowLabel,
   wideLabel,
+  enabled,
+  onEnabledChange,
   valueFormatter,
   onChange,
   onChangeComplete,
 }: WidthSliderProps) {
   const formatValue = valueFormatter ?? ((v: number) => `${v}%`);
+  const hasToggle = typeof enabled !== 'undefined' && onEnabledChange;
 
   return (
     <Card className="p-4 transition-shadow hover:shadow-lg">
-      <div className="mb-3 flex items-center justify-between">
-        <CardTitle className="text-xs uppercase">{label}</CardTitle>
-        <span className="text-primary bg-primary/10 rounded-md px-2.5 py-1 text-sm font-bold shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <div className="flex flex-1 items-center gap-2">
+          <CardTitle
+            className={`text-xs uppercase transition-opacity ${hasToggle && !enabled ? 'opacity-50' : ''}`}
+          >
+            {label}
+          </CardTitle>
+          {hasToggle && (
+            <Switch
+              checked={enabled}
+              onChange={(e) => onEnabledChange(e.target.checked)}
+              className="origin-left scale-75"
+            />
+          )}
+        </div>
+        <span
+          className={`text-primary bg-primary/10 rounded-md px-2.5 py-1 text-sm font-bold shadow-sm transition-opacity ${hasToggle && !enabled ? 'opacity-50' : ''}`}
+        >
           {formatValue(value)}
         </span>
       </div>
