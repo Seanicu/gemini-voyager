@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import browser from 'webextension-polyfill';
 
+import { StorageKeys } from '@/core/types/common';
 import { isSafari, shouldShowSafariUpdateReminder } from '@/core/utils/browser';
 import { shouldShowUpdateReminderForCurrentVersion } from '@/core/utils/updateReminder';
 import { compareVersions } from '@/core/utils/version';
@@ -130,6 +131,7 @@ interface SettingsUpdate {
   preventAutoScrollEnabled?: boolean;
   chatWidthEnabled?: boolean;
   editInputWidthEnabled?: boolean;
+  forkEnabled?: boolean;
 }
 
 export default function Popup() {
@@ -161,6 +163,7 @@ export default function Popup() {
   const [preventAutoScrollEnabled, setPreventAutoScrollEnabled] = useState<boolean>(false);
   const [chatWidthEnabled, setChatWidthEnabled] = useState<boolean>(true);
   const [editInputWidthEnabled, setEditInputWidthEnabled] = useState<boolean>(true);
+  const [forkEnabled, setForkEnabled] = useState<boolean>(false);
   const [isAIStudio, setIsAIStudio] = useState<boolean>(false);
 
   useEffect(() => {
@@ -243,6 +246,8 @@ export default function Popup() {
         payload.geminiChatWidthEnabled = settings.chatWidthEnabled;
       if (typeof settings.editInputWidthEnabled === 'boolean')
         payload.geminiEditInputWidthEnabled = settings.editInputWidthEnabled;
+      if (typeof settings.forkEnabled === 'boolean')
+        payload[StorageKeys.FORK_ENABLED] = settings.forkEnabled;
       void setSyncStorage(payload);
     },
     [setSyncStorage],
@@ -474,6 +479,7 @@ export default function Popup() {
           gvPreventAutoScrollEnabled: false,
           geminiChatWidthEnabled: true,
           geminiEditInputWidthEnabled: true,
+          [StorageKeys.FORK_ENABLED]: false,
         },
         (res) => {
           const m = res?.geminiTimelineScrollMode as ScrollMode;
@@ -502,6 +508,7 @@ export default function Popup() {
           setPreventAutoScrollEnabled(res?.gvPreventAutoScrollEnabled === true);
           setChatWidthEnabled(res?.geminiChatWidthEnabled !== false);
           setEditInputWidthEnabled(res?.geminiEditInputWidthEnabled !== false);
+          setForkEnabled(res?.[StorageKeys.FORK_ENABLED] === true);
 
           // Reconcile stored custom websites with actual granted permissions.
           // If the user denied a permission request, the popup may have closed before we could revert storage.
@@ -807,8 +814,8 @@ export default function Popup() {
                 />
                 <button
                   className={`relative z-10 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-200 ${mode === 'flow'
-                      ? 'text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
+                    ? 'text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
                     }`}
                   onClick={() => {
                     setMode('flow');
@@ -819,8 +826,8 @@ export default function Popup() {
                 </button>
                 <button
                   className={`relative z-10 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-200 ${mode === 'jump'
-                      ? 'text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
+                    ? 'text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
                     }`}
                   onClick={() => {
                     setMode('jump');
@@ -980,6 +987,32 @@ export default function Popup() {
                 onChange={(e) => {
                   setHideArchivedConversations(e.target.checked);
                   apply({ hideArchivedConversations: e.target.checked });
+                }}
+              />
+            </div>
+            <div className="group flex items-center justify-between">
+              <div className="flex-1">
+                <Label
+                  htmlFor="fork-enabled"
+                  className="group-hover:text-primary flex cursor-pointer items-center gap-1 text-sm font-medium transition-colors"
+                >
+                  {t('enableForkFeature')}
+                  <span
+                    className="material-symbols-outlined cursor-help text-[16px] leading-none opacity-50 transition-opacity hover:opacity-100"
+                    title={t('experimentalLabel')}
+                    style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}
+                  >
+                    experiment
+                  </span>
+                </Label>
+                <p className="text-muted-foreground mt-1 text-xs">{t('enableForkFeatureHint')}</p>
+              </div>
+              <Switch
+                id="fork-enabled"
+                checked={forkEnabled}
+                onChange={(e) => {
+                  setForkEnabled(e.target.checked);
+                  apply({ forkEnabled: e.target.checked });
                 }}
               />
             </div>
@@ -1269,7 +1302,7 @@ export default function Popup() {
                       onClick={() => {
                         void toggleQuickWebsite(domain, isEnabled);
                       }}
-                      className={`inline-flex min-w-[30%] flex-grow items-center justify-center gap-1 rounded-full px-2 py-1.5 text-[11px] font-medium transition-all ${isEnabled
+                      className={`inline-flex min-w-[30%] grow items-center justify-center gap-1 rounded-full px-2 py-1.5 text-[11px] font-medium transition-all ${isEnabled
                           ? 'bg-primary text-primary-foreground shadow-sm'
                           : 'bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'
                         }`}
