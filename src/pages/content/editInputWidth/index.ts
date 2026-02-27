@@ -161,47 +161,79 @@ function removeStyles(): void {
  */
 export function startEditInputWidthAdjuster(): void {
   let currentWidthPercent = DEFAULT_PERCENT;
+  let isEnabled = true;
 
   // Load initial width from storage
-  chrome.storage?.sync?.get({ geminiEditInputWidth: DEFAULT_PERCENT }, (res) => {
-    const storedWidth = res?.geminiEditInputWidth;
-    const normalized = normalizePercent(storedWidth, DEFAULT_PERCENT);
-    currentWidthPercent = normalized;
-    applyWidth(currentWidthPercent);
+  chrome.storage?.sync?.get(
+    { geminiEditInputWidth: DEFAULT_PERCENT, geminiEditInputWidthEnabled: true },
+    (res) => {
+      isEnabled = res?.geminiEditInputWidthEnabled !== false;
+      const storedWidth = res?.geminiEditInputWidth;
+      const normalized = normalizePercent(storedWidth, DEFAULT_PERCENT);
+      currentWidthPercent = normalized;
 
-    if (typeof storedWidth === 'number' && storedWidth !== normalized) {
-      try {
-        chrome.storage?.sync?.set({ geminiEditInputWidth: normalized });
-      } catch (e) {
-        console.warn('[Gemini Voyager] Failed to migrate edit input width to %:', e);
+      if (isEnabled) applyWidth(currentWidthPercent);
+
+      if (typeof storedWidth === 'number' && storedWidth !== normalized) {
+        try {
+          chrome.storage?.sync?.set({ geminiEditInputWidth: normalized });
+        } catch (e) {
+          console.warn('[Gemini Voyager] Failed to migrate edit input width to %:', e);
+        }
       }
-    }
-  });
+    },
+  );
 
   // Listen for changes from storage (when user adjusts in popup)
-  chrome.storage?.onChanged?.addListener((changes, area) => {
-    if (area === 'sync' && changes.geminiEditInputWidth) {
-      const newWidth = changes.geminiEditInputWidth.newValue;
-      if (typeof newWidth === 'number') {
-        const normalized = normalizePercent(newWidth, DEFAULT_PERCENT);
-        currentWidthPercent = normalized;
-        applyWidth(currentWidthPercent);
+  const storageChangeHandler = (
+    changes: Record<string, chrome.storage.StorageChange>,
+    area: string,
+  ) => {
+    if (area === 'sync') {
+      let shouldUpdate = false;
 
-        if (normalized !== newWidth) {
-          try {
-            chrome.storage?.sync?.set({ geminiEditInputWidth: normalized });
-          } catch (e) {
-            console.warn('[Gemini Voyager] Failed to migrate edit input width to % on change:', e);
+      if (changes.geminiEditInputWidthEnabled) {
+        isEnabled = changes.geminiEditInputWidthEnabled.newValue !== false;
+        shouldUpdate = true;
+      }
+
+      if (changes.geminiEditInputWidth) {
+        const newWidth = changes.geminiEditInputWidth.newValue;
+        if (typeof newWidth === 'number') {
+          const normalized = normalizePercent(newWidth, DEFAULT_PERCENT);
+          currentWidthPercent = normalized;
+          shouldUpdate = true;
+
+          if (normalized !== newWidth) {
+            try {
+              chrome.storage?.sync?.set({ geminiEditInputWidth: normalized });
+            } catch (e) {
+              console.warn(
+                '[Gemini Voyager] Failed to migrate edit input width to % on change:',
+                e,
+              );
+            }
           }
         }
       }
+
+      if (shouldUpdate) {
+        if (isEnabled) {
+          applyWidth(currentWidthPercent);
+        } else {
+          removeStyles();
+        }
+      }
     }
-  });
+  };
+
+  chrome.storage?.onChanged?.addListener(storageChangeHandler);
 
   // Re-apply styles when DOM changes (for dynamic content)
   // Use debouncing and cache the width to avoid storage reads
   let debounceTimer: number | null = null;
   const observer = new MutationObserver(() => {
+    if (!isEnabled) return;
     if (debounceTimer !== null) {
       clearTimeout(debounceTimer);
     }
@@ -224,8 +256,18 @@ export function startEditInputWidthAdjuster(): void {
   }
 
   // Clean up on unload
-  window.addEventListener('beforeunload', () => {
-    observer.disconnect();
-    removeStyles();
-  });
+  window.addEventListener(
+    'beforeunload',
+    () => {
+      observer.disconnect();
+      removeStyles();
+      // Remove storage listener
+      try {
+        chrome.storage?.onChanged?.removeListener(storageChangeHandler);
+      } catch (e) {
+        console.error('[Gemini Voyager] Failed to remove storage listener on unload:', e);
+      }
+    },
+    { once: true },
+  );
 }

@@ -48,6 +48,8 @@ export const StorageKeys = {
   // UI customization
   CHAT_WIDTH: 'geminiChatWidth',
   CHAT_WIDTH_ENABLED: 'geminiChatWidthEnabled',
+  EDIT_INPUT_WIDTH: 'geminiEditInputWidth',
+  EDIT_INPUT_WIDTH_ENABLED: 'geminiEditInputWidthEnabled',
 
   // Prompt Manager
   PROMPT_ITEMS: 'gvPromptItems',

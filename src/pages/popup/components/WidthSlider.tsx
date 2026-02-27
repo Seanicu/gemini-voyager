@@ -70,6 +70,7 @@ export default function WidthSlider({
             max={max}
             step={step}
             value={value}
+            disabled={hasToggle && !enabled}
             onValueChange={onChange}
             onValueCommit={onChangeComplete}
           />
